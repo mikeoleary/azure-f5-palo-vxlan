@@ -1,0 +1,323 @@
+{
+    "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+    "contentVersion": "1.0.0.0",
+    "parameters": {
+        "adminUserName": {
+            "defaultValue": "azureuser",
+            "allowedValues": [
+                "azureuser"
+            ],
+            "metadata": {
+                "description": "User Name for network devices"
+            },
+            "type": "string"
+        },
+        "password": {
+            "metadata": {
+                "description": "Password or SSH public key to login to the Virtual Machine. Note: There are a number of special characters that you should avoid using for F5 product user accounts.  See [K2873](https://support.f5.com/csp/article/K2873) for details. Note: If using key-based authentication, this should be the public key as a string, typically starting with **---- BEGIN SSH2 PUBLIC KEY ----** and ending with **---- END SSH2 PUBLIC KEY ----**."
+            },
+            "type": "securestring"
+        },
+        "dnsLabel": {
+            "metadata": {
+                "description": "Must be globally unique DNS Name. This value is used to name resources like VMs and storage accounts. Must be letters and numbers only."
+            },
+            "type": "string"
+        },
+        "restrictedSrcAddress": {
+            "metadata": {
+                "description": "This field restricts management access to a specific network or address. Enter an IP address or address range in CIDR notation. You should use your own IP address. By using * you will leave this management console open to the Internet, which is not recommended."
+            },
+            "defaultValue": "*",
+            "allowedValues": [
+                "*"
+            ],
+            "type": "string"
+        }
+    },
+    "variables": {},
+    "resources": [
+                    {
+                        "type": "Microsoft.Resources/deployments",
+                        "apiVersion": "2018-05-01",
+                        "name": "vnetLinkedTemplate",
+                        "properties": {
+                            "mode": "Incremental",
+                            "templateLink": {
+                                "uri":"https://raw.githubusercontent.com/mikeoleary/azure-f5-palo/master/templates/vnet/azuredeploy.json",
+                                "contentVersion":"1.0.0.0"
+                            },
+                            "parameters": {
+                                "dnsLabel": {
+                                    "value": "[parameters('dnsLabel')]"
+                                }
+                            }
+                        }
+                    },
+                    {
+                        "type": "Microsoft.Resources/deployments",
+                        "apiVersion": "2018-05-01",
+                        "name": "stgAcctLinkedTemplate",
+                        "dependsOn": [
+                            "appLinkedTemplate"
+                            ],
+                        "properties": {
+                            "mode": "Incremental",
+                            "templateLink": {
+                                "uri":"https://raw.githubusercontent.com/mikeoleary/azure-f5-palo/master/templates/storageaccount/azureDeploy.json",
+                                "contentVersion":"1.0.0.0"
+                            },
+                            "parameters": {
+                                "StorageAccountName": {
+                                    "value": "[parameters('dnsLabel')]"
+                                },
+                                "sourceStorageURL": {
+                                    "value": "https://molearyfiles.blob.core.windows.net/paloaltobootstrapfiles"
+                                },
+                                "userAssignedManagedIdentityName": {
+                                    "value": "[reference('iamLinkedTemplate').outputs.identityName.value]"
+                                },
+                                "userAssignedManagedIdentityId": {
+                                    "value": "[reference('iamLinkedTemplate').outputs.identityId.value]"
+                                }
+                            }
+                        }
+                    },
+                    {
+                        "type": "Microsoft.Resources/deployments",
+                        "apiVersion": "2018-05-01",
+                        "name": "f5LinkedTemplate",
+                        "properties": {
+                            "mode": "Incremental",
+                            "templateLink": {
+                                "uri":"https://raw.githubusercontent.com/mikeoleary/azure-f5-palo/master/templates/f5/azuredeploy.json",
+                                "contentVersion":"9.5.0.0"
+                            },
+                            "parameters": {
+                                "adminUsername": {
+                                    "value": "[parameters('adminUserName')]"
+                                },
+                                "adminPasswordOrKey":{
+                                    "value": "[parameters('password')]"
+                                    },
+                                "dnsLabel": {
+                                    "value": "[parameters('dnsLabel')]"
+                                },
+                                "vnetName":{
+                                    "value": "[reference('vnetLinkedTemplate').outputs.virtualNetworkName.value]"
+                                },
+                                "vnetResourceGroupName":{
+                                    "value": "[resourceGroup().name]"
+                                },
+                                "mgmtSubnetName":{
+                                    "value": "[reference('vnetLinkedTemplate').outputs.mgmtSubnetName.value]"
+                                },
+                                "externalSubnetName":{
+                                    "value": "[reference('vnetLinkedTemplate').outputs.externalSubnetName.value]"
+                                },
+                                "internalSubnetName":{
+                                    "value": "[reference('vnetLinkedTemplate').outputs.internalSubnetName.value]"
+                                },                             
+                                "declarationUrl": {
+                                    "value": "https://raw.githubusercontent.com/mikeoleary/azure-f5-palo/master/templates/f5/baseline.json"
+                                },
+                                "restrictedSrcAddress": {
+                                    "value": "[parameters('restrictedSrcAddress')]"     
+                                }                        
+                            }
+                        }
+                    },
+                    {
+                        "type": "Microsoft.Resources/deployments",
+                        "apiVersion": "2018-05-01",
+                        "name": "paLinkedTemplate",
+                        "properties": {
+                            "mode": "Incremental",
+                            "templateLink": {
+                                "uri":"https://raw.githubusercontent.com/mikeoleary/azure-f5-palo/master/templates/paloalto/azureDeploy.json",
+                                "contentVersion":"1.0.0.0"
+                            },
+                            "parameters": {
+                                "adminPassword":{
+                                    "value": "[parameters('password')]"
+                                },
+                                "adminUserName": {
+                                    "value": "[parameters('adminUserName')]"
+                                },
+                                "dnsNameForPublicIP": {
+                                    "value": "[concat(take(toLower(parameters('dnsLabel')), 19), '-palo1')]"
+                                },
+                                "dnsNameForPublicIP2": {
+                                    "value": "[concat(take(toLower(parameters('dnsLabel')), 19), '-palo2')]"
+                                },
+                                "vmName": {
+                                    "value": "pavm1"
+                                },
+                                "vmName2": {
+                                    "value": "pavm2"
+                                },
+                                "imageVersion": {
+                                    "value": "latest"
+                                },
+                                "imageSku": {
+                                    "value": "bundle2"
+                                },
+                                "subnet0id" : {
+                                    "value": "[reference('vnetLinkedTemplate').outputs.mgmtSubnetId.value]"
+                                },
+                                "subnet1id" : {
+                                    "value": "[reference('vnetLinkedTemplate').outputs.untrustSubnetId.value]"
+                                },
+                                "subnet2id" : {
+                                    "value": "[reference('vnetLinkedTemplate').outputs.trustSubnetId.value]"
+                                },
+                                "subnet3id" : {
+                                    "value": "[reference('vnetLinkedTemplate').outputs.haSubnetId.value]"
+                                },
+                                "storageAccountName" : {
+                                    "value": "[reference('stgAcctLinkedTemplate').outputs.storageAccountName.value]"
+                                },
+                                "StorageAccountKey" : {
+                                    "value": "[reference('stgAcctLinkedTemplate').outputs.StorageAccountKey.value]"
+                                },
+                                "lbpublicIPId": {
+                                    "value": "[reference('stgAcctLinkedTemplate').outputs.lbpublicIPId.value]"
+                                }
+                            }
+                        }
+                    },
+                    {
+                        "type": "Microsoft.Resources/deployments",
+                        "apiVersion": "2018-05-01",
+                        "name": "appLinkedTemplate",
+                        "properties": {
+                            "mode": "Incremental",
+                            "templateLink": {
+                                "uri":"https://raw.githubusercontent.com/mikeoleary/azure-f5-palo/master/templates/appserver/azuredeploy.json",
+                                "contentVersion":"1.0.0.0"
+                            },
+                            "parameters": {
+                                "adminUsername": {
+                                    "value": "[parameters('adminUsername')]"
+                                },
+                                "adminPasswordOrKey": {
+                                    "value": "[parameters('password')]"
+                                },
+                                "subnetId": {
+                                    "value": "[reference('vnetLinkedTemplate').outputs.appSubnet1Id.value]"
+                                },
+                                "privateIPAddress": {
+                                    "value": "[reference('vnetLinkedTemplate').outputs.appServer1IP.value]"
+                                }
+                            }
+                        }
+                    },
+                    {
+                        "type": "Microsoft.Resources/deployments",
+                        "apiVersion": "2018-05-01",
+                        "name": "iamLinkedTemplate",
+                        "properties": {
+                            "mode": "Incremental",
+                            "templateLink": {
+                                "uri":"https://raw.githubusercontent.com/mikeoleary/azure-f5-palo/master/templates/iam/azuredeploy.json",
+                                "contentVersion":"1.0.0.0"
+                            },
+                            "parameters": {
+                                "resourceName": {
+                                    "value": "[parameters('dnsLabel')]"
+                                }
+                            }
+                        }
+                    },
+                    {
+                        "type": "Microsoft.Resources/deployments",
+                        "apiVersion": "2018-05-01",
+                        "name": "postDeployCheckLinkedTemplate",
+                        "properties": {
+                            "mode": "Incremental",
+                            "templateLink": {
+                                "uri":"https://raw.githubusercontent.com/mikeoleary/azure-f5-palo/master/templates/postDeployCheck/azuredeploy.json",
+                                "contentVersion":"1.0.0.0"
+                            },
+                            "parameters": {
+                                "dnsLabel": {
+                                    "value": "[parameters('dnsLabel')]"
+                                },
+                                "userAssignedManagedIdentityId": {
+                                    "value": "[reference('iamLinkedTemplate').outputs.identityId.value]"
+                                },
+                                "userAssignedManagedIdentityName": {
+                                    "value": "[reference('iamLinkedTemplate').outputs.identityName.value]"
+                                },
+                                "storageAccountName": {
+                                    "value": "[reference('stgAcctLinkedTemplate').outputs.storageAccountName.value]"
+                                },
+                                "storageAccountKey": {
+                                    "value": "[reference('stgAcctLinkedTemplate').outputs.StorageAccountKey.value]"
+                                },
+                                "appServerPublicIP": {
+                                    "value": "[reference('appLinkedTemplate').outputs.appServerPublicIP.value]"
+                                }
+                            }
+                        }
+                    },
+                    {
+                        "type": "Microsoft.Resources/deployments",
+                        "apiVersion": "2018-05-01",
+                        "name": "routesLinkedTemplate",
+                        "dependsOn": [
+                            "paLinkedTemplate",
+                            "postDeployCheckLinkedTemplate"
+                        ],
+                        "properties": {
+                            "mode": "Incremental",
+                            "templateLink": {
+                                "uri":"https://raw.githubusercontent.com/mikeoleary/azure-f5-palo/master/templates/routes/azureDeploy.json",
+                                "contentVersion":"1.0.0.0"
+                            },
+                            "parameters": {
+                                "virtualnetworkName": {
+                                    "value": "[reference('vnetLinkedTemplate').outputs.virtualnetworkName.value]"
+                                },
+                                "extSubnetName": {
+                                    "value": "[reference('vnetLinkedTemplate').outputs.externalSubnetName.value]"
+                                },
+                                "extSubnetPrefix": {
+                                    "value": "[reference('vnetLinkedTemplate').outputs.extSubnetPrefix.value]"
+                                },
+                                "extNsgId": {
+                                    "value": "[resourceId('Microsoft.Network/networkSecurityGroups/',concat(parameters('dnsLabel'),'-ext-nsg'))]"
+                                },
+                                "appSubnet1Name": {
+                                    "value": "[reference('vnetLinkedTemplate').outputs.appSubnet1Name.value]"
+                                },
+                                "appSubnet1Prefix": {
+                                    "value": "[reference('vnetLinkedTemplate').outputs.appSubnet1Prefix.value]"
+                                }
+                            }
+                        }
+                    }
+                ],
+    "outputs": {
+        "appUrl": {
+            "type": "string",
+            "value": "[reference('stgAcctLinkedTemplate').outputs.appUrl.value]"
+            },      
+        "fw1mgmtIP": {
+            "type": "string",
+            "value": "[reference('paLinkedTemplate').outputs.fw1mgmtIP.value]"
+            },
+        "fw2mgmtIP": {
+            "type": "string",
+            "value": "[reference('paLinkedTemplate').outputs.fw2mgmtIP.value]"
+            },
+        "bigip1mgmtIP": {
+            "type": "string",
+            "value": "[reference('f5LinkedTemplate').outputs.bigip1mgmtIP.value]"
+        },
+        "bigip2mgmtIP": {
+            "type": "string",
+            "value": "[reference('f5LinkedTemplate').outputs.bigip2mgmtIP.value]"
+        }
+    }
+}

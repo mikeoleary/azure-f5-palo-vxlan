@@ -1,0 +1,147 @@
+{
+    "$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
+    "contentVersion": "1.0.0.0",
+    "parameters": {
+        "StorageAccountName": {
+            "type": "string",
+            "metadata": {
+                "description": "Name of the storage account to create"
+            }
+        },
+        "fileShareName": {
+            "type": "string",
+            "metadata": {
+                "description": "Name of the fileshare in the storage account to store files"
+            },
+            "defaultValue": "bootstrapfiles"
+        },
+        "sourceStorageURL": {
+            "type": "string",
+            "metadata": {
+                "description": "URL of Azure Storage Account and blob container with orginal files to copy"
+            },
+            "defaultValue": "https://molearyfiles.blob.core.windows.net/paloaltobootstrapfiles"
+        },
+        "userAssignedManagedIdentityName": {
+            "type": "string",
+            "metadata": {
+                "description": "Name of User Assigned Managed Identity with Contributor permissions on RG"
+            }
+        },
+        "userAssignedManagedIdentityId": {
+            "type": "string",
+            "metadata": {
+                "description": "Id of User Assigned Managed Identity with Contributor permissions on RG"
+            }
+        }
+    },
+    "variables": {
+        "storageAccountName": "[concat(take(toLower(parameters('StorageAccountName')), 19),take(uniqueString(resourceGroup().id),5))]",
+        "storageAccountId": "[resourceId('Microsoft.Storage/storageAccounts', variables('StorageAccountName'))]",
+        "sourceStorageURL": "[parameters('sourceStorageURL')]",
+        "lbpublicIPName": "loadBalancerPublicIP",
+        "lbpublicIPId": "[resourceId('Microsoft.Network/publicIPAddresses', variables('lbpublicIPName'))]",
+        "srcBlob": "https://molearyfiles.blob.core.windows.net/paloaltobootstrapfiles",
+        "destFileShare": "[concat('https://', variables('storageAccountName'), '.file.core.windows.net/', parameters('fileShareName'))]",
+        "primaryScriptUri": "https://raw.githubusercontent.com/mikeoleary/azure-f5-palo/master/templates/storageaccount/deploymentScriptContent.ps1",
+        "containerGroupName": "[concat(parameters('StorageAccountName'), '-containerGroup')]"
+
+    },
+    "resources": [
+        {
+            "type": "Microsoft.Authorization/roleAssignments",
+            "apiVersion": "2018-09-01-preview",
+            "name": "[guid(resourceGroup().id)]",
+            "properties": {
+                "roleDefinitionId": "[concat('/subscriptions/', subscription().subscriptionId, '/providers/Microsoft.Authorization/roleDefinitions/', 'b24988ac-6180-42a0-ab88-20f7382dd24c')]",
+                "principalId": "[parameters('userAssignedManagedIdentityId')]"
+            }
+        },
+        {
+            "apiVersion": "2018-10-01",
+            "type": "Microsoft.Network/publicIPAddresses",
+            "name": "[variables('lbpublicIPName')]",
+            "sku": {
+                "name": "Standard"
+            },
+            "location": "[resourceGroup().location]",
+            "properties": {
+                "publicIPAllocationMethod": "Static"
+            }
+        }, 
+        {
+            "type": "Microsoft.Storage/storageAccounts",
+            "apiVersion": "2018-02-01",
+            "name": "[variables('StorageAccountName')]",
+            "location": "[resourceGroup().location]",
+            "tags": {
+                "displayName": "[variables('StorageAccountName')]"
+            },
+            "sku": {
+                "name": "Standard_LRS"
+            },
+            "kind": "StorageV2",
+            "properties": {}
+        },
+        {
+            "type": "Microsoft.Storage/storageAccounts/fileServices/shares",
+            "apiVersion": "2019-04-01",
+            "name": "[concat(variables('storageAccountName'), '/default/', parameters('fileShareName'))]",
+            "dependsOn": [
+                "[resourceId('Microsoft.Storage/storageAccounts', variables('storageAccountName'))]"
+            ]
+        },
+        {
+            "type": "Microsoft.Resources/deploymentScripts",
+            "apiVersion": "2019-10-01-preview",
+            "name": "runPowerShellInline-copyFileToStorageAcct",
+            "dependsOn": [
+                "[resourceId('Microsoft.Storage/storageAccounts', variables('StorageAccountName'))]",
+                "[guid(resourceGroup().id)]"
+            ],
+            "location": "[resourceGroup().location]",
+            "kind": "AzurePowerShell", // or "AzureCLI"
+            "identity": {
+                "type": "userAssigned",
+                "userAssignedIdentities": {
+                    "[resourceId('Microsoft.ManagedIdentity/userAssignedIdentities/', parameters('userAssignedManagedIdentityName'))]": {}
+                }
+            },
+            "properties": {
+                "forceUpdateTag": 1,
+                "containerSettings": {
+                    "containerGroupName": "[variables('containerGroupName')]"
+                },
+                "storageAccountSettings": {
+                    "storageAccountName": "[variables('storageAccountName')]",
+                    "storageAccountKey": "[listKeys(variables('storageAccountid') ,'2015-05-01-preview').key1]"
+                },
+                "azPowerShellVersion": "3.0",  // or "azCliVersion": "2.0.80"
+                "arguments": "[concat('-srcBlob ', variables('srcBlob'), ' -destStorageAcctName ', variables('storageAccountName'), ' -destFileShare ', variables('destFileShare'),  ' -publicIP ', reference(variables('lbpublicIPId')).ipAddress, ' -StorageAccountKey ', listKeys(variables('storageAccountid'),'2015-05-01-preview').key1)]",
+                "primaryScriptUri": "[variables('primaryScriptUri')]",
+                "supportingScriptUris":[],
+                "timeout": "PT30M",
+                "cleanupPreference": "OnSuccess",
+                "retentionInterval": "P1D"
+            }
+        }
+    ],
+    "outputs": {
+        "StorageAccountKey": {
+            "type": "string",
+            "value": "[listKeys(variables('storageAccountid') ,'2015-05-01-preview').key1]"
+        },
+        "storageAccountName": {
+            "type": "string",
+            "value": "[variables('storageAccountName')]"
+        },
+        "lbpublicIPId":{
+            "type": "string",
+            "value": "[variables('lbpublicIPId')]"
+        },
+        "appUrl": {
+            "type": "string",
+            "value": "[concat('https://', reference(variables('lbpublicIPId')).IpAddress)]"
+        }
+    }
+}

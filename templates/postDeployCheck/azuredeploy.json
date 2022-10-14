@@ -1,0 +1,90 @@
+{
+    "$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
+    "contentVersion": "1.0.0.0",
+    "parameters": {
+        "dnsLabel": {
+            "type": "string",
+            "metadata": {
+                "description": "DNS Label for deployment"
+            }
+        },
+        "storageAccountName": {
+            "type": "string",
+            "metadata": {
+                "description": "storageAccountName"
+            }
+        },
+        "storageAccountKey": {
+            "type": "string",
+            "metadata": {
+                "description": "storageAccountKey"
+            }
+        },
+        "userAssignedManagedIdentityId": {
+            "type": "string",
+            "metadata": {
+                "description": "Id of User Assigned Managed Identity with Contributor permissions on RG"
+            }
+        },
+        "userAssignedManagedIdentityName": {
+            "type": "string",
+            "metadata": {
+                "description": "Name of User Assigned Managed Identity with Contributor permissions on RG"
+            }
+        },
+        "appServerPublicIP": {
+            "type": "string",
+            "metadata": {
+                "description": "Public IP address of app server deployment"
+            }
+        }
+    },
+    "variables":{
+        "containerGroupName": "[concat(parameters('dnsLabel'), '-containerGroup')]",
+        "primaryScriptUri": "https://raw.githubusercontent.com/mikeoleary/azure-f5-palo/master/templates/postDeployCheck/deploymentScriptContent.ps1"
+        },
+    "resources": [
+        {
+            "type": "Microsoft.Authorization/roleAssignments",
+            "apiVersion": "2018-09-01-preview",
+            "name": "[guid(resourceGroup().id)]",
+            "properties": {
+                "roleDefinitionId": "[concat('/subscriptions/', subscription().subscriptionId, '/providers/Microsoft.Authorization/roleDefinitions/', 'b24988ac-6180-42a0-ab88-20f7382dd24c')]",
+                "principalId": "[parameters('userAssignedManagedIdentityId')]"
+            }
+        },
+        {
+            "type": "Microsoft.Resources/deploymentScripts",
+            "apiVersion": "2019-10-01-preview",
+            "name": "runPowerShellInline-checkAppServerStatus",
+            "dependsOn": [
+                "[guid(resourceGroup().id)]"
+            ],
+            "location": "[resourceGroup().location]",
+            "kind": "AzurePowerShell", // or "AzureCLI"
+            "identity": {
+                "type": "userAssigned",
+                "userAssignedIdentities": {
+                    "[resourceId('Microsoft.ManagedIdentity/userAssignedIdentities/', parameters('userAssignedManagedIdentityName'))]": {}
+                }
+            },
+            "properties": {
+                "forceUpdateTag": 1,
+                "containerSettings": {
+                    "containerGroupName": "[variables('containerGroupName')]"
+                },
+                "storageAccountSettings": {
+                    "storageAccountName": "[parameters('storageAccountName')]",
+                    "storageAccountKey": "[parameters('storageAccountKey')]"
+                },
+                "azPowerShellVersion": "3.0",  // or "azCliVersion": "2.0.80"
+                "arguments": "[concat('-url http://', parameters('appServerPublicIP'))]",
+                "primaryScriptUri": "[variables('primaryScriptUri')]",
+                "supportingScriptUris":[],
+                "timeout": "PT30M",
+                "cleanupPreference": "OnSuccess",
+                "retentionInterval": "P1D"
+            }
+        }
+    ]
+}
