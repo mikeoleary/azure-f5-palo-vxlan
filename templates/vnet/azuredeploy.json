@@ -108,6 +108,14 @@
         "intSubnetPrefix":{
             "type": "string",
             "value": "[variables('intSubnetPrefix')]"
-        }
+        },
+        "subnets": {
+            "type": "Array",
+            "value": [
+                "[variables('mgmtSubnetId')]",
+                "[variables('extSubnetId')]",
+                "[variables('intSubnetId')]"
+        ]
+    }
     }
 }

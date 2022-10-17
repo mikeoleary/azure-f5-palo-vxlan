@@ -8,6 +8,9 @@
       "artifactLocation": {
         "value": "master/templates/f5/"
       },
+      "cfeStorageAccountName": {
+        "value": "moleary"
+      },
       "bigIpPasswordSecretId": {
         "value": "https://moleary-kv.vault.azure.net/secrets/bigip"
       },
