@@ -62,6 +62,20 @@
             ],
             "type": "string"
         },
+        "restrictedSrcAddressApp": {
+            "metadata": {
+              "description": "REQUIRED - When creating application security group, this field restricts application access to a specific network or address. Enter an IP address or address range in CIDR notation, or asterisk for all sources."
+            },
+            "defaultValue": "*",
+            "type": "string"
+          },
+          "restrictedSrcAddressMgmt": {
+            "metadata": {
+              "description": "REQUIRED - When creating management security group, this field restricts management access to a specific network or address. Enter an IP address or address range in CIDR notation, or asterisk for all sources."
+            },
+            "defaultValue": "*",
+            "type": "string"
+          },
         "tagValues": {
             "defaultValue": {
               "application": "f5demoapp",
@@ -83,7 +97,6 @@
             "type": "string"
           },
           "uniqueString": {
-            "defaultValue": "[uniqueString( resourceGroup().id, deployment().name )]",
             "metadata": {
               "description": "REQUIRED - A prefix that will be used to name template resources. Because some resources require globally unique names, we recommend using a unique value."
             },
@@ -91,21 +104,79 @@
           }
     },
     "variables": {
+        "adminUsername": "[parameters('adminUsername')]",
+        "appNsgRulesArray": [
+            {
+              "destinationPortRanges": [
+                "80",
+                "443"
+              ],
+              "sourceAddressPrefix": "[parameters('restrictedSrcAddressApp')]",
+              "protocol": "Tcp"
+            },
+            {
+              "destinationPortRanges": [
+                "80",
+                "443"
+              ],
+              "sourceAddressPrefix": "10.0.0.0/8",
+              "protocol": "Tcp"
+            }
+          ],
         "appSecurityGroup": "[variables('appNsgRulesArray')]",
         "createManagedIdentity": "[empty(parameters('bigIpUserAssignManagedIdentity'))]",
         "contentVersion": "[deployment().properties.template.contentVersion]",
         "customAssignableScopes": [],
         "customRolePermissions": [],
         "externalLoadBalancerName": "None",
+        "externalNsgRulesArray": [
+            {
+              "destinationPortRanges": [
+                "80",
+                "443"
+              ],
+              "sourceAddressPrefix": "[parameters('restrictedSrcAddressApp')]",
+              "protocol": "Tcp"
+            }
+          ],
+        "externalSecurityGroup": "[variables('externalNsgRulesArray')]",
         "internalLoadBalancerName": "None",
+        "internalNsgRulesArray": [
+            {
+              "destinationPortRanges": [
+                "80",
+                "443"
+              ],
+              "sourceAddressPrefix": "[parameters('restrictedSrcAddressApp')]",
+              "protocol": "Tcp"
+            },
+            {
+              "destinationPortRanges": [
+                "80",
+                "443"
+              ],
+              "sourceAddressPrefix": "10.0.0.0/8",
+              "protocol": "Tcp"
+            }
+          ],
         "internalSecurityGroup": "[variables('internalNsgRulesArray')]",
         "loadBalancerRulePorts": [],
+        "mgmtNsgRulesArray": [
+            {
+              "destinationPortRanges": [
+                "22",
+                "443"
+              ],
+              "sourceAddressPrefix": "[parameters('restrictedSrcAddressMgmt')]",
+              "protocol": "Tcp"
+            }
+          ],
         "mgmtSecurityGroup": "[variables('mgmtNsgRulesArray')]",
         "keyVaultPermissionsKeys": [
             "list",
             "get"
           ],
-          "keyVaultPermissionsSecrets": [
+        "keyVaultPermissionsSecrets": [
             "list",
             "get"
           ],
@@ -214,13 +285,260 @@
                               "value": "[variables('internalSecurityGroup')]"
                             },
                             "numberPublicExternalIpAddresses": {
-                              "value": "[if(parameters('provisionServicePublicIp'), 3, 2)]"
+                              "value": "[if(parameters('provisionExampleApp'), 3, 2)]"
                             },
                             "numberPublicMgmtIpAddresses": {
                               "value": "[if(parameters('provisionPublicIpMgmt'), 2, 1)]"
                             },
                             "tagValues": {
                               "value": "[parameters('tagValues')]"
+                            }
+                          }
+                        }
+                      },
+                      {
+                        "type": "Microsoft.Resources/deployments",
+                        "apiVersion": "2021-04-01",
+                        "name": "bigIpTemplate01",
+                        "dependsOn": [
+                          "networkTemplate",
+                          "accessTemplate",
+                          "dagTemplate"
+                        ],
+                        "properties": {
+                          "mode": "Incremental",
+                          "templateLink": {
+                            "uri": "[concat(parameters('templateBaseUrl'), parameters('artifactLocation'), 'modules/bigip-standalone/bigip.json')]",
+                            "contentVersion": "[variables('contentVersion')]"
+                          },
+                          "parameters": {
+                            "adminUsername": {
+                              "value": "[variables('adminUsername')]"
+                            },
+                            "allowUsageAnalytics": {
+                              "value": "[parameters('allowUsageAnalytics')]"
+                            },
+                            "hostname": {
+                              "value": "[parameters('bigIpHostname01')]"
+                            },
+                            "licenseKey": {
+                              "value": "[parameters('bigIpLicenseKey01')]"
+                            },
+                            "bigIpPeerAddr": {
+                              "value": ""
+                            },
+                            "bigIpPeerHostname": {
+                              "value": "[parameters('bigIpHostname02')]"
+                            },
+                            "cfeStorageAccountName": {
+                              "value": "[variables('cfeStorageAccountName')]"
+                            },
+                            "cfeTag": {
+                              "value": "[parameters('cfeTag')]"
+                            },
+                            "image": {
+                              "value": "[parameters('bigIpImage')]"
+                            },
+                            "instanceType": {
+                              "value": "[parameters('bigIpInstanceType')]"
+                            },
+                            "mgmtSubnetId": {
+                              "value": "[reference('networkTemplate').outputs.subnets.value[0]]"
+                            },
+                            "mgmtNsgID": {
+                              "value": "[reference('dagTemplate').outputs.nsg0Id.value]"
+                            },
+                            "mgmtPublicIpId": {
+                              "value": "[if(parameters('provisionPublicIpMgmt'), reference('dagTemplate').outputs.mgmtIpIds.value[0], '')]"
+                            },
+                            "mgmtSelfIp": {
+                              "value": "[parameters('bigIpMgmtAddress01')]"
+                            },
+                            "nic1SubnetId": {
+                              "value": "[reference('networkTemplate').outputs.subnets.value[1]]"
+                            },
+                            "nic1NsgId": {
+                              "value": "[reference('dagTemplate').outputs.nsg1Id.value]"
+                            },
+                            "nic1PrimaryPublicId": {
+                              "value": "[reference('dagTemplate').outputs.externalIpIds.value[0]]"
+                            },
+                            "nic1SelfIp": {
+                              "value": "[parameters('bigIpExternalSelfIp01')]"
+                            },
+                            "nic1ServiceIPs": {
+                              "value": []
+                            },
+                            "nic2SubnetId": {
+                              "value": "[reference('networkTemplate').outputs.subnets.value[2]]"
+                            },
+                            "nic2NsgId": {
+                              "value": "[reference('dagTemplate').outputs.nsg2Id.value]"
+                            },
+                            "nic2PrimaryPublicId": {
+                              "value": ""
+                            },
+                            "nic2SelfIp": {
+                              "value": "[parameters('bigIpInternalSelfIp01')]"
+                            },
+                            "nic2ServiceIPs": {
+                              "value": []
+                            },
+                            "roleDefinitionId": {
+                              "value": ""
+                            },
+                            "bigIpRuntimeInitPackageUrl": {
+                              "value": "[parameters('bigIpRuntimeInitPackageUrl')]"
+                            },
+                            "bigIpRuntimeInitConfig": {
+                              "value": "[parameters('bigIpRuntimeInitConfig01')]"
+                            },
+                            "secretId": {
+                              "value": "[parameters('bigIpPasswordSecretId')]"
+                            },
+                            "sshKey": {
+                              "value": "[parameters('sshKey')]"
+                            },
+                            "tagValues": {
+                              "value": "[parameters('tagValues')]"
+                            },
+                            "uniqueString": {
+                              "value": "[concat(variables('uniqueString'), '01')]"
+                            },
+                            "userAssignManagedIdentity": {
+                              "value": "[if(not(variables('createManagedIdentity')), parameters('bigIpUserAssignManagedIdentity'), reference('accessTemplate').outputs.userAssignedIdentityId.value)]"
+                            },
+                            "vmName": {
+                              "value": "[variables('vmName01')]"
+                            },
+                            "zone": {
+                              "value": "[if(parameters('useAvailabilityZones'), '1', '')]"
+                            }
+                          }
+                        }
+                      },
+                      {
+                        "type": "Microsoft.Resources/deployments",
+                        "apiVersion": "2021-04-01",
+                        "name": "bigIpTemplate02",
+                        "dependsOn": [
+                          "networkTemplate",
+                          "accessTemplate",
+                          "dagTemplate"
+                        ],
+                        "properties": {
+                          "mode": "Incremental",
+                          "templateLink": {
+                            "uri": "[concat(parameters('templateBaseUrl'), parameters('artifactLocation'), 'modules/bigip-standalone/bigip.json')]",
+                            "contentVersion": "[variables('contentVersion')]"
+                          },
+                          "parameters": {
+                            "adminUsername": {
+                              "value": "[variables('adminUsername')]"
+                            },
+                            "allowUsageAnalytics": {
+                              "value": "[parameters('allowUsageAnalytics')]"
+                            },
+                            "hostname": {
+                              "value": "[parameters('bigIpHostname02')]"
+                            },
+                            "licenseKey": {
+                              "value": "[parameters('bigIpLicenseKey02')]"
+                            },
+                            "bigIpPeerAddr": {
+                              "value": "[parameters('bigIpPeerAddr')]"
+                            },
+                            "bigIpPeerHostname": {
+                              "value": "[parameters('bigIpHostname01')]"
+                            },
+                            "cfeStorageAccountName": {
+                              "value": ""
+                            },
+                            "cfeTag": {
+                              "value": "[parameters('cfeTag')]"
+                            },
+                            "image": {
+                              "value": "[parameters('bigIpImage')]"
+                            },
+                            "instanceType": {
+                              "value": "[parameters('bigIpInstanceType')]"
+                            },
+                            "mgmtSubnetId": {
+                              "value": "[reference('networkTemplate').outputs.subnets.value[0]]"
+                            },
+                            "mgmtNsgID": {
+                              "value": "[reference('dagTemplate').outputs.nsg0Id.value]"
+                            },
+                            "mgmtPublicIpId": {
+                              "value": "[if(parameters('provisionPublicIpMgmt'), reference('dagTemplate').outputs.mgmtIpIds.value[1], '')]"
+                            },
+                            "mgmtSelfIp": {
+                              "value": "[parameters('bigIpMgmtAddress02')]"
+                            },
+                            "nic1SubnetId": {
+                              "value": "[reference('networkTemplate').outputs.subnets.value[1]]"
+                            },
+                            "nic1NsgId": {
+                              "value": "[reference('dagTemplate').outputs.nsg1Id.value]"
+                            },
+                            "nic1PrimaryPublicId": {
+                              "value": "[reference('dagTemplate').outputs.externalIpIds.value[1]]"
+                            },
+                            "nic1SelfIp": {
+                              "value": "[parameters('bigIpExternalSelfIp02')]"
+                            },
+                            "nic1ServiceIPs": {
+                              "value": [
+                                {
+                                  "publicIpId": "[if(parameters('provisionExampleApp'), reference('dagTemplate').outputs.externalIpIds.value[2], '')]",
+                                  "privateIpAddress": "[parameters('bigIpExternalVip01')]"
+                                }
+                              ]
+                            },
+                            "nic2SubnetId": {
+                              "value": "[reference('networkTemplate').outputs.subnets.value[2]]"
+                            },
+                            "nic2NsgId": {
+                              "value": "[reference('dagTemplate').outputs.nsg2Id.value]"
+                            },
+                            "nic2PrimaryPublicId": {
+                              "value": ""
+                            },
+                            "nic2SelfIp": {
+                              "value": "[parameters('bigIpInternalSelfIp02')]"
+                            },
+                            "nic2ServiceIPs": {
+                              "value": []
+                            },
+                            "roleDefinitionId": {
+                              "value": ""
+                            },
+                            "bigIpRuntimeInitPackageUrl": {
+                              "value": "[parameters('bigIpRuntimeInitPackageUrl')]"
+                            },
+                            "bigIpRuntimeInitConfig": {
+                              "value": "[parameters('bigIpRuntimeInitConfig02')]"
+                            },
+                            "secretId": {
+                              "value": "[parameters('bigIpPasswordSecretId')]"
+                            },
+                            "sshKey": {
+                              "value": "[parameters('sshKey')]"
+                            },
+                            "tagValues": {
+                              "value": "[parameters('tagValues')]"
+                            },
+                            "uniqueString": {
+                              "value": "[concat(variables('uniqueString'), '02')]"
+                            },
+                            "userAssignManagedIdentity": {
+                              "value": "[if(not(variables('createManagedIdentity')), parameters('bigIpUserAssignManagedIdentity'), reference('accessTemplate').outputs.userAssignedIdentityId.value)]"
+                            },
+                            "vmName": {
+                              "value": "[variables('vmName02')]"
+                            },
+                            "zone": {
+                              "value": "[if(parameters('useAvailabilityZones'), '2', '')]"
                             }
                           }
                         }
