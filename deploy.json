@@ -1,6 +1,6 @@
 {
     "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
-    "contentVersion": "1.0.0.0",
+    "contentVersion": "2.5.0.0",
     "parameters": {
         "adminUserName": {
             "defaultValue": "azureuser",
@@ -12,12 +12,13 @@
             },
             "type": "string"
         },
-        "password": {
+        "bigIpUserAssignManagedIdentity": {
+            "defaultValue": "",
             "metadata": {
-                "description": "Password or SSH public key to login to the Virtual Machine. Note: There are a number of special characters that you should avoid using for F5 product user accounts.  See [K2873](https://support.f5.com/csp/article/K2873) for details. Note: If using key-based authentication, this should be the public key as a string, typically starting with **---- BEGIN SSH2 PUBLIC KEY ----** and ending with **---- END SSH2 PUBLIC KEY ----**."
+              "description": "Enter user assigned management identity ID to be associated to virtual machine. Leave default if not used."
             },
-            "type": "securestring"
-        },
+            "type": "string"
+          },
         "dnsLabel": {
             "metadata": {
                 "description": "Must be globally unique DNS Name. This value is used to name resources like VMs and storage accounts. Must be letters and numbers only."
@@ -33,9 +34,39 @@
                 "*"
             ],
             "type": "string"
-        }
+        },
+        "tagValues": {
+            "defaultValue": {
+              "application": "f5demoapp",
+              "cost": "f5cost",
+              "environment": "f5env",
+              "group": "f5group",
+              "owner": "f5owner"
+            },
+            "metadata": {
+              "description": "Default key/value resource tags will be added to the resources in this deployment, if you would like the values to be unique adjust them as needed for each key."
+            },
+            "type": "object"
+          }
     },
-    "variables": {},
+    "variables": {
+        "createManagedIdentity": "[empty(parameters('bigIpUserAssignManagedIdentity'))]",
+        "contentVersion": "[deployment().properties.template.contentVersion]",
+        "customAssignableScopes": [],
+        "customRolePermissions": [],
+        "keyVaultPermissionsKeys": [
+            "list",
+            "get"
+          ],
+          "keyVaultPermissionsSecrets": [
+            "list",
+            "get"
+          ],
+        "roleDescription": "Role created by failover deployment",
+        "roleName": "[concat(variables('uniqueString'), '-bigip-high-availability-role')]",
+        "solutionType": "failover",
+        "userAssignedIdentityName": "[concat(variables('uniqueString'), '-bigip-user-identity')]"
+    },
     "resources": [
                     {
                         "type": "Microsoft.Resources/deployments",
@@ -45,7 +76,7 @@
                             "mode": "Incremental",
                             "templateLink": {
                                 "uri":"https://raw.githubusercontent.com/mikeoleary/azure-f5-palo-vxlan/master/templates/vnet/azuredeploy.json",
-                                "contentVersion":"1.0.0.0"
+                                "contentVersion": "[variables('contentVersion')]"
                             },
                             "parameters": {
                                 "dnsLabel": {
@@ -56,33 +87,51 @@
                     },
                     {
                         "type": "Microsoft.Resources/deployments",
-                        "apiVersion": "2018-05-01",
-                        "name": "stgAcctLinkedTemplate",
-                        "dependsOn": [
-                            "appLinkedTemplate"
-                            ],
+                        "apiVersion": "2021-04-01",
+                        "condition": "[variables('createManagedIdentity')]",
+                        "name": "accessTemplate",
                         "properties": {
-                            "mode": "Incremental",
-                            "templateLink": {
-                                "uri":"https://raw.githubusercontent.com/mikeoleary/azure-f5-palo-vxlan/master/templates/storageaccount/azureDeploy.json",
-                                "contentVersion":"1.0.0.0"
+                          "mode": "Incremental",
+                          "templateLink": {
+                            "uri": "[concat(parameters('templateBaseUrl'), parameters('artifactLocation'), 'modules/access/access.json')]",
+                            "contentVersion": "[variables('contentVersion')]"
+                          },
+                          "parameters": {
+                            "solutionType": {
+                              "value": "[variables('solutionType')]"
                             },
-                            "parameters": {
-                                "StorageAccountName": {
-                                    "value": "[parameters('dnsLabel')]"
-                                },
-                                "sourceStorageURL": {
-                                    "value": "https://molearyfiles.blob.core.windows.net/paloaltobootstrapfiles"
-                                },
-                                "userAssignedManagedIdentityName": {
-                                    "value": "[reference('iamLinkedTemplate').outputs.identityName.value]"
-                                },
-                                "userAssignedManagedIdentityId": {
-                                    "value": "[reference('iamLinkedTemplate').outputs.identityId.value]"
-                                }
+                            "customAssignableScopes": {
+                              "value": "[variables('customAssignableScopes')]"
+                            },
+                            "roleDescription": {
+                              "value": "[variables('roleDescription')]"
+                            },
+                            "roleName": {
+                              "value": "[variables('roleName')]"
+                            },
+                            "customRolePermissions": {
+                              "value": "[variables('customRolePermissions')]"
+                            },
+                            "keyVaultPermissionsKeys": {
+                              "value": "[variables('keyVaultPermissionsKeys')]"
+                            },
+                            "keyVaultPermissionsSecrets": {
+                              "value": "[variables('keyVaultPermissionsSecrets')]"
+                            },
+                            "secretId": {
+                              "value": "[parameters('bigIpPasswordSecretId')]"
+                            },
+                            "userAssignedIdentityName": {
+                              "value": "[variables('userAssignedIdentityName')]"
+                            },
+                            "tagValues": {
+                              "value": "[parameters('tagValues')]"
                             }
+                          }
                         }
-                    },
+                    }
+/*
+
                     {
                         "type": "Microsoft.Resources/deployments",
                         "apiVersion": "2018-05-01",
@@ -90,40 +139,43 @@
                         "properties": {
                             "mode": "Incremental",
                             "templateLink": {
-                                "uri":"https://raw.githubusercontent.com/mikeoleary/azure-f5-palo-vxlan/master/templates/f5/azuredeploy.json",
-                                "contentVersion":"9.5.0.0"
+                                "uri":"https://raw.githubusercontent.com/mikeoleary/azure-f5-palo-vxlan/master/templates/f5/azuredeploy-existing-network.json",
+                                "contentVersion":"2.5.0.0"
                             },
                             "parameters": {
-                                "adminUsername": {
-                                    "value": "[parameters('adminUserName')]"
+                                "templateBaseUrl":{
+                                    "value": "https://github.com/mikeoleary/azure-f5-palo-vxlan/"
                                 },
-                                "adminPasswordOrKey":{
-                                    "value": "[parameters('password')]"
-                                    },
-                                "dnsLabel": {
-                                    "value": "[parameters('dnsLabel')]"
+                                "uniqueString":{
+                                    "value": "[uniqueString( resourceGroup().id, deployment().name )]"
                                 },
-                                "vnetName":{
-                                    "value": "[reference('vnetLinkedTemplate').outputs.virtualNetworkName.value]"
+                                "bigIpPasswordSecretId":{
+                                    "value": "https://moleary-kv.vault.azure.net/secrets/bigip"
                                 },
-                                "vnetResourceGroupName":{
-                                    "value": "[resourceGroup().name]"
+                                "sshKey": {
+                                    "value": "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQCG7p1o92Q40gfkETw4SK1bMFI+bH7vJ3i15XJumx7C4R2Am7uSAqKU+pKLU3QL7er6vEJwriNIUad6ZADxNbk+rp41uebxcAToxkJl/EOXRpDqGUf/XIzM/0yrecOZVlYN2Qf9jIy2e7Zzpi/MM+mA6aAga7Uol3bUpx39LubqE+D4g8HQ34MlJgGC4NQWyrgB4gWs9i0wd+KKNr03j9VxuK2a7IEdajJG/MmLwTkaHn/IKK8SJOL5mlzfn9eNPufG8Vx0SrZVPfEIeBl6n2ZHsz9NocIYf79uvdDnNUwf+ApFj1xI7oUiDZHJfuh/XdHFHHv5/IfZAzwbWqFZgY91 imported-openssh-key"
                                 },
-                                "mgmtSubnetName":{
-                                    "value": "[reference('vnetLinkedTemplate').outputs.mgmtSubnetName.value]"
+                                "provisionPublicIpMgmt": {
+                                    "value": true
                                 },
-                                "externalSubnetName":{
-                                    "value": "[reference('vnetLinkedTemplate').outputs.externalSubnetName.value]"
-                                },
-                                "internalSubnetName":{
-                                    "value": "[reference('vnetLinkedTemplate').outputs.internalSubnetName.value]"
-                                },                             
-                                "declarationUrl": {
-                                    "value": "https://raw.githubusercontent.com/mikeoleary/azure-f5-palo-vxlan/master/templates/f5/baseline.json"
-                                },
-                                "restrictedSrcAddress": {
-                                    "value": "[parameters('restrictedSrcAddress')]"     
-                                }                        
+                                "provisionServicePublicIp": {
+                                    "value": true
+                                },    
+                                "restrictedSrcAddressMgmt": {
+                                    "value": "*"
+                                },                     
+                                "restrictedSrcAddressApp": {
+                                    "value": "*"
+                                },                     
+                                "bigIpMgmtSubnetId": {
+                                    "value": "*"
+                                },                     
+                                "bigIpExternalSubnetId": {
+                                    "value": "*"
+                                },                     
+                                "bigIpInternalSubnetId": {
+                                    "value": "*"
+                                }                  
                             }
                         }
                     },
@@ -297,8 +349,10 @@
                             }
                         }
                     }
+                    */
                 ],
     "outputs": {
+       /*
         "appUrl": {
             "type": "string",
             "value": "[reference('stgAcctLinkedTemplate').outputs.appUrl.value]"
@@ -319,5 +373,6 @@
             "type": "string",
             "value": "[reference('f5LinkedTemplate').outputs.bigip2mgmtIP.value]"
         }
+        */
     }
 }

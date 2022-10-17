@@ -1,6 +1,6 @@
 {
     "$schema": "http://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json",
-    "contentVersion": "1.0.0.0",
+    "contentVersion": "2.5.0.0",
     "parameters": {
         "vnetAddressPrefix": {
             "defaultValue": "10.0",
@@ -27,10 +27,10 @@
         "mgmtSubnetId": "[concat(variables('vnetId'), '/subnets/', variables('mgmtSubnetName'))]",
         "extSubnetName": "external",
         "extSubnetId": "[concat(variables('vnetId'), '/subnets/', variables('extsubnetName'))]",
-        "extSubnetPrefix": "[concat(parameters('vnetAddressPrefix'), '.3.0/24')]",
+        "extSubnetPrefix": "[concat(parameters('vnetAddressPrefix'), '.1.0/24')]",
         "intSubnetName": "internal",
         "intSubnetId": "[concat(variables('vnetId'), '/subnets/', variables('intsubnetName'))]",
-        "intSubnetPrefix": "[concat(parameters('vnetAddressPrefix'), '.4.0/24')]",
+        "intSubnetPrefix": "[concat(parameters('vnetAddressPrefix'), '.2.0/24')]",
         "vnetId": "[resourceId('Microsoft.Network/virtualNetworks', variables('virtualNetworkName'))]"
     },
     "resources": [
