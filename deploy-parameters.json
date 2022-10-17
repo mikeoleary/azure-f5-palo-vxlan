@@ -2,11 +2,17 @@
     "$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentParameters.json#",
     "contentVersion": "2.5.0.0",
     "parameters": {
-      "password": {
-        "value": "DefaultPass12345!"
-      },
       "dnsLabel": {
         "value": "molearymon"
+      },
+      "artifactLocation": {
+        "value": "master/templates/f5/"
+      },
+      "bigIpPasswordSecretId": {
+        "value": "https://moleary-kv.vault.azure.net/secrets/bigip"
+      },
+      "templateBaseUrl": {
+        "value": "https://raw.githubusercontent.com/mikeoleary/azure-f5-palo-vxlan/"
       }
     }
   }
