@@ -26,6 +26,27 @@
             },
             "type": "string"
         },
+        "bigIpExternalSelfIp01": {
+            "defaultValue": "10.0.1.11",
+            "metadata": {
+              "description": "External Private IP Address for BIGIP Instance 01. IP address parameter must be in the form x.x.x.x."
+            },
+            "type": "string"
+          },
+          "bigIpExternalSelfIp02": {
+            "defaultValue": "10.0.1.12",
+            "metadata": {
+              "description": "External Private IP Address for BIGIP Instance 02. IP address parameter must be in the form x.x.x.x."
+            },
+            "type": "string"
+          },
+          "bigIpExternalVip01": {
+            "defaultValue": "10.0.1.101",
+            "metadata": {
+              "description": "External private VIP Address for BIGIP Instance. IP address parameter must be in the form x.x.x.x. The address must reside in the same subnet and address space as the IP address provided for bigIpExternalSelfIp01."
+            },
+            "type": "string"
+          },
         "bigIpHostname01": {
             "defaultValue": "failover01.local",
             "metadata": {
@@ -33,6 +54,20 @@
             },
             "type": "string"
         },
+        "bigIpInternalSelfIp01": {
+            "defaultValue": "10.0.2.11",
+            "metadata": {
+              "description": "Internal Private IP Address for BIGIP Instance 01. IP address parameter must be in the form x.x.x.x."
+            },
+            "type": "string"
+          },
+          "bigIpInternalSelfIp02": {
+            "defaultValue": "10.0.2.12",
+            "metadata": {
+              "description": "Internal Private IP Address for BIGIP Instance 02. IP address parameter must be in the form x.x.x.x."
+            },
+            "type": "string"
+          },
         "bigIpHostname02": {
             "defaultValue": "failover02.local",
             "metadata": {
@@ -68,6 +103,20 @@
             },
             "type": "string"
           },
+          "bigIpMgmtAddress01": {
+            "defaultValue": "10.0.0.11",
+            "metadata": {
+              "description": "Management Private IP Address for BIGIP Instance 01. IP address parameter must be in the form x.x.x.x."
+            },
+            "type": "string"
+          },
+          "bigIpMgmtAddress02": {
+            "defaultValue": "10.0.0.12",
+            "metadata": {
+              "description": "Management Private IP Address for BIGIP Instance 02. IP address parameter must be in the form x.x.x.x."
+            },
+            "type": "string"
+          },
         "bigIpPasswordSecretId": {
             "metadata": {
               "description": "REQUIRED - The full URL of the secretId where the BIG-IP password is stored, including KeyVault Name. For example: https://yourvaultname.vault.azure.net/secrets/yoursecretid."
@@ -78,6 +127,27 @@
             "defaultValue": "10.0.1.11",
             "metadata": {
               "description": "Provide the static address of the remote peer used for clustering. In this failover solution, clustering is initiated from the second instance (02) to the first instance (01) so you would provide the first instances Self IP address."
+            },
+            "type": "string"
+          },
+          "bigIpRuntimeInitConfig01": {
+            "defaultValue": "https://raw.githubusercontent.com/F5Networks/f5-azure-arm-templates-v2/v2.5.0.0/examples/failover/bigip-configurations/runtime-init-conf-3nic-payg-instance01-with-app.yaml",
+            "metadata": {
+              "description": "Supply a URL to the bigip-runtime-init configuration file in YAML or JSON format, or an escaped JSON string to use for f5-bigip-runtime-init configuration."
+            },
+            "type": "string"
+          },
+          "bigIpRuntimeInitConfig02": {
+            "defaultValue": "https://raw.githubusercontent.com/F5Networks/f5-azure-arm-templates-v2/v2.5.0.0/examples/failover/bigip-configurations/runtime-init-conf-3nic-payg-instance02-with-app.yaml",
+            "metadata": {
+              "description": "Supply a URL to the bigip-runtime-init configuration file in YAML or JSON format, or an escaped JSON string to use for f5-bigip-runtime-init configuration."
+            },
+            "type": "string"
+          },
+          "bigIpRuntimeInitPackageUrl": {
+            "defaultValue": "https://cdn.f5.com/product/cloudsolutions/f5-bigip-runtime-init/v1.5.1/dist/f5-bigip-runtime-init-1.5.1-1.gz.run",
+            "metadata": {
+              "description": "URL for BIG-IP Runtime Init package"
             },
             "type": "string"
           },
@@ -107,6 +177,20 @@
                 "description": "Must be globally unique DNS Name. This value is used to name resources like VMs and storage accounts. Must be letters and numbers only."
             },
             "type": "string"
+        },
+        "paStorageAccountName": {
+          "defaultValue": "",
+          "metadata": {
+            "description": "Supply a unique name for the PA storage account created for VM disk."
+          },
+          "type": "string"
+        },
+        "paMgmtAddress01": {
+          "defaultValue": "10.0.0.13",
+          "metadata": {
+            "description": "Management Private IP Address for Palo Alto device. IP address parameter must be in the form x.x.x.x."
+          },
+          "type": "string"
         },
         "provisionExampleApp": {
             "defaultValue": true,
@@ -146,6 +230,12 @@
             "defaultValue": "*",
             "type": "string"
           },
+        "sshKey": {
+            "metadata": {
+              "description": "REQUIRED - Supply the public key that will be used for SSH authentication to the BIG-IP and application virtual machines."
+            },
+            "type": "string"
+          },
         "tagValues": {
             "defaultValue": {
               "application": "f5demoapp",
@@ -171,6 +261,13 @@
               "description": "REQUIRED - A prefix that will be used to name template resources. Because some resources require globally unique names, we recommend using a unique value."
             },
             "type": "string"
+          },
+          "useAvailabilityZones": {
+            "defaultValue": false,
+            "metadata": {
+              "description": "This deployment can deploy resources into Azure Availability Zones (if the region supports it).  If that is not desired the input should be set false. If the region does not support availability zones the input should be set to false."
+            },
+            "type": "bool"
           }
     },
     "variables": {
@@ -195,6 +292,7 @@
           ],
         "appSecurityGroup": "[variables('appNsgRulesArray')]",
         "cfeStorageAccountName": "[if(not(empty(parameters('cfeStorageAccountName'))), parameters('cfeStorageAccountName'), concat(parameters('uniqueString'), 'stcfe'))]",
+        "cloudInitUrl": "",
         "createManagedIdentity": "[empty(parameters('bigIpUserAssignManagedIdentity'))]",
         "contentVersion": "[deployment().properties.template.contentVersion]",
         "customAssignableScopes": [],
@@ -251,11 +349,19 @@
             "list",
             "get"
           ],
+        "paStorageAccountName": "[if(not(empty(parameters('paStorageAccountName'))), parameters('paStorageAccountName'), concat(parameters('uniqueString'), 'stpa'))]",
+        "paImageSku": "bundle1",
+        "paImageOffer": "vmseries1",
+        "paImagePublisher": "paloaltonetworks",
+        "paVmName": "[concat(variables('uniqueString'), '-pa-vm')]",
+        "paVmSize": "Standard_D3",
         "roleDescription": "Role created by failover deployment",
         "roleName": "[concat(variables('uniqueString'), '-bigip-high-availability-role')]",
         "solutionType": "failover",
         "uniqueString": "[toLower(parameters('uniqueString'))]",
-        "userAssignedIdentityName": "[concat(variables('uniqueString'), '-bigip-user-identity')]"
+        "userAssignedIdentityName": "[concat(variables('uniqueString'), '-bigip-user-identity')]",
+        "vmName01": "[concat(variables('uniqueString'), '-bigip-vm-01')]",
+        "vmName02": "[concat(variables('uniqueString'), '-bigip-vm-02')]"
     },
     "resources": [
                     {
@@ -613,56 +719,76 @@
                             }
                           }
                         }
+                      },
+                      {
+                        "type": "Microsoft.Resources/deployments",
+                        "apiVersion": "2021-04-01",
+                        "name": "storageAcctTemplate",
+                        "properties": {
+                          "mode": "Incremental",
+                          "templateLink": {
+                            "uri": "[concat(parameters('templateBaseUrl'), parameters('palo-artifactLocation'), '/pa-storage.json')]",
+                            "contentVersion": "[variables('contentVersion')]"
+                          },
+                          "parameters": {
+                            "storageAccountName": {
+                              "value": "[variables('paStorageAccountName')]"
+                            }
+                          }
+                        }
+                      },
+                      {
+                        "name": "paVmTemplate",
+                        "type": "Microsoft.Resources/deployments",
+                        "apiVersion": "2021-04-01",
+                        "dependsOn": [
+                           "storageAccountTemplate"
+                        ],
+                        "properties": {
+                          "mode": "Incremental",
+                          "templateLink": {
+                            "uri": "[concat(parameters('templateBaseUrl'), parameters('palo-artifactLocation'), '/pa-vm.json')]",
+                            "contentVersion": "[variables('contentVersion')]"
+                          },
+                          "parameters": {
+                            "vmName": {
+                              "value": "[parameters('paVmName')]"
+                            },
+                            "paImageSku": {
+                              "value": "[variables('imageSku')]"
+                            },
+                            "paImageOffer": {
+                              "value": "[variables('imageOffer')]"
+                            },
+                            "paImagePublisher": {
+                              "value": "[variables('imagePublisher')]"
+                            },
+                            "mgmtSubnetId": {
+                              "value": "[reference('networkTemplate').outputs.subnets.value[0]]"
+                            },
+                            "mgmtSelfIp": {
+                              "value": "[parameters('paMgmtAddress01)]"
+                            },
+                            "nic1SubnetId": {
+                              "value": "[reference('networkTemplate').outputs.subnets.value[1]]"
+                            },
+                            "storageAccountName": {
+                              "value": "[variables('paStorageAccountName')]"
+                            },
+                            "vmSize": {
+                              "value": "[variables('paVmSize')]"
+                            },
+                            "adminUsername": {
+                              "value": "[parameters('adminUsername')]"
+                            },
+                            "sshKey": {
+                              "value": "[parameters('sshKey')]"
+                            }
+                          }
+                        }
                       }
 /*
 
-                    {
-                        "type": "Microsoft.Resources/deployments",
-                        "apiVersion": "2018-05-01",
-                        "name": "f5LinkedTemplate",
-                        "properties": {
-                            "mode": "Incremental",
-                            "templateLink": {
-                                "uri":"https://raw.githubusercontent.com/mikeoleary/azure-f5-palo-vxlan/master/templates/f5/azuredeploy-existing-network.json",
-                                "contentVersion":"2.5.0.0"
-                            },
-                            "parameters": {
-                                "templateBaseUrl":{
-                                    "value": "https://github.com/mikeoleary/azure-f5-palo-vxlan/"
-                                },
-                                "uniqueString":{
-                                    "value": "[uniqueString( resourceGroup().id, deployment().name )]"
-                                },
-                                "bigIpPasswordSecretId":{
-                                    "value": "https://moleary-kv.vault.azure.net/secrets/bigip"
-                                },
-                                "sshKey": {
-                                    "value": "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQCG7p1o92Q40gfkETw4SK1bMFI+bH7vJ3i15XJumx7C4R2Am7uSAqKU+pKLU3QL7er6vEJwriNIUad6ZADxNbk+rp41uebxcAToxkJl/EOXRpDqGUf/XIzM/0yrecOZVlYN2Qf9jIy2e7Zzpi/MM+mA6aAga7Uol3bUpx39LubqE+D4g8HQ34MlJgGC4NQWyrgB4gWs9i0wd+KKNr03j9VxuK2a7IEdajJG/MmLwTkaHn/IKK8SJOL5mlzfn9eNPufG8Vx0SrZVPfEIeBl6n2ZHsz9NocIYf79uvdDnNUwf+ApFj1xI7oUiDZHJfuh/XdHFHHv5/IfZAzwbWqFZgY91 imported-openssh-key"
-                                },
-                                "provisionPublicIpMgmt": {
-                                    "value": true
-                                },
-                                "provisionServicePublicIp": {
-                                    "value": true
-                                },    
-                                "restrictedSrcAddressMgmt": {
-                                    "value": "*"
-                                },                     
-                                "restrictedSrcAddressApp": {
-                                    "value": "*"
-                                },                     
-                                "bigIpMgmtSubnetId": {
-                                    "value": "*"
-                                },                     
-                                "bigIpExternalSubnetId": {
-                                    "value": "*"
-                                },                     
-                                "bigIpInternalSubnetId": {
-                                    "value": "*"
-                                }                  
-                            }
-                        }
-                    },
                     {
                         "type": "Microsoft.Resources/deployments",
                         "apiVersion": "2018-05-01",
