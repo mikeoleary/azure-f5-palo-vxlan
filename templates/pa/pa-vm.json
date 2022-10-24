@@ -59,6 +59,9 @@
             "apiVersion": "[variables('apiVersion')]",
             "type": "Microsoft.Network/networkInterfaces",
             "name": "[concat(parameters('vmName'), '-nic0')]",
+            "dependsOn": [
+                "[variables('fwpublicIPName')]"
+            ],
             "location": "[variables('location')]",
             "properties": {
                 "ipConfigurations": [{
