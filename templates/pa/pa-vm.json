@@ -32,9 +32,6 @@
       "adminUsername": {
         "type": "string"
       },
-      "adminPassword": {
-        "type": "securestring"
-      },
       "storageAccountName": {
         "type": "string"
       },
