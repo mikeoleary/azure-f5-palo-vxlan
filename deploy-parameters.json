@@ -3,16 +3,25 @@
     "contentVersion": "2.5.0.0",
     "parameters": {
       "dnsLabel": {
-        "value": "molearymon"
+        "value": "molearytue"
       },
       "artifactLocation": {
         "value": "master/templates/f5/"
       },
       "cfeStorageAccountName": {
-        "value": "moleary"
+        "value": ""
       },
       "bigIpPasswordSecretId": {
-        "value": "https://moleary-kv.vault.azure.net/secrets/bigip"
+        "value": "https://molearykv.vault.azure.net/secrets/bigip"
+      },
+      "palo-artifactLocation": {
+        "value": "master/templates/pa/"
+      },
+      "paStorageAccountName": {
+        "value": ""
+      },
+      "sshKey": {
+        "value": "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQCG7p1o92Q40gfkETw4SK1bMFI+bH7vJ3i15XJumx7C4R2Am7uSAqKU+pKLU3QL7er6vEJwriNIUad6ZADxNbk+rp41uebxcAToxkJl/EOXRpDqGUf/XIzM/0yrecOZVlYN2Qf9jIy2e7Zzpi/MM+mA6aAga7Uol3bUpx39LubqE+D4g8HQ34MlJgGC4NQWyrgB4gWs9i0wd+KKNr03j9VxuK2a7IEdajJG/MmLwTkaHn/IKK8SJOL5mlzfn9eNPufG8Vx0SrZVPfEIeBl6n2ZHsz9NocIYf79uvdDnNUwf+ApFj1xI7oUiDZHJfuh/XdHFHHv5/IfZAzwbWqFZgY91 imported-openssh-key"
       },
       "templateBaseUrl": {
         "value": "https://raw.githubusercontent.com/mikeoleary/azure-f5-palo-vxlan/"
