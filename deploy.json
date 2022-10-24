@@ -192,6 +192,13 @@
           },
           "type": "string"
         },
+        "paNic1Address": {
+          "defaultValue": "10.0.2.13",
+          "metadata": {
+            "description": "Management Private IP Address for Palo Alto device. IP address parameter must be in the form x.x.x.x."
+          },
+          "type": "string"
+        },
         "palo-artifactLocation": {
           "metadata": {
             "description": "The directory, relative to the templateBaseUrl, where the modules folder is located."
@@ -758,16 +765,16 @@
                           },
                           "parameters": {
                             "vmName": {
-                              "value": "[parameters('paVmName')]"
+                              "value": "[variables('paVmName')]"
                             },
-                            "paImageSku": {
-                              "value": "[variables('imageSku')]"
+                            "ImageSku": {
+                              "value": "[variables('paImageSku')]"
                             },
-                            "paImageOffer": {
-                              "value": "[variables('imageOffer')]"
+                            "ImageOffer": {
+                              "value": "[variables('paimageOffer')]"
                             },
-                            "paImagePublisher": {
-                              "value": "[variables('imagePublisher')]"
+                            "ImagePublisher": {
+                              "value": "[variables('paimagePublisher')]"
                             },
                             "mgmtSubnetId": {
                               "value": "[reference('networkTemplate').outputs.subnets.value[0]]"
@@ -777,6 +784,9 @@
                             },
                             "nic1SubnetId": {
                               "value": "[reference('networkTemplate').outputs.subnets.value[1]]"
+                            },
+                            "nic1SelfIp": {
+                              "value": "[parameters('paNic1Address')]"
                             },
                             "storageAccountName": {
                               "value": "[variables('paStorageAccountName')]"

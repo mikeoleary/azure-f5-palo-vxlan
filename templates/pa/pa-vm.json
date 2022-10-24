@@ -14,7 +14,13 @@
       "imagePublisher": {
         "type": "string"
       },
+      "mgmtSubnetId": {
+        "type": "string"
+      },
       "mgmtSelfIp": {
+        "type": "string"
+      },
+      "nic1SubnetId": {
         "type": "string"
       },
       "nic1SelfIp": {
