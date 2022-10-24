@@ -12,8 +12,9 @@
     "resources": [
       {
       "type": "Microsoft.Storage/storageAccounts",
+      "kind": "Storage",
       "name": "[parameters('storageAccountName')]",
-      "apiVersion": "2015-06-15",
+      "apiVersion": "2021-04-01",
       "location": "[resourceGroup().location]",
       "properties": {
         "supportsHttpsTrafficOnly": true
