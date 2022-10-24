@@ -42,7 +42,7 @@
     "variables": {
       "apiVersion": "2015-06-15",
       "sshKeyPath": "[concat('/home/',parameters('adminUsername'),'/.ssh/authorized_keys')]",
-      "location": "resourceGroup().location",
+      "location": "[resourceGroup().location]",
       "fwpublicIPName": "[concat(parameters('vmName'), '-mgmtIP')]"
     },
     "resources": [
