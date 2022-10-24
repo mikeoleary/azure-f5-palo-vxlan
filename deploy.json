@@ -192,6 +192,12 @@
           },
           "type": "string"
         },
+        "palo-artifactLocation": {
+          "metadata": {
+            "description": "The directory, relative to the templateBaseUrl, where the modules folder is located."
+          },
+          "type": "string"
+      },
         "provisionExampleApp": {
             "defaultValue": true,
             "metadata": {
