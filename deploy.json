@@ -748,7 +748,7 @@
                         "type": "Microsoft.Resources/deployments",
                         "apiVersion": "2021-04-01",
                         "dependsOn": [
-                           "storageAccountTemplate"
+                           "storageAcctTemplate"
                         ],
                         "properties": {
                           "mode": "Incremental",
