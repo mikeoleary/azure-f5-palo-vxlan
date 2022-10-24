@@ -773,7 +773,7 @@
                               "value": "[reference('networkTemplate').outputs.subnets.value[0]]"
                             },
                             "mgmtSelfIp": {
-                              "value": "[parameters('paMgmtAddress01)]"
+                              "value": "[parameters('paMgmtAddress01')]"
                             },
                             "nic1SubnetId": {
                               "value": "[reference('networkTemplate').outputs.subnets.value[1]]"
