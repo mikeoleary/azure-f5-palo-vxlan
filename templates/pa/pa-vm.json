@@ -101,6 +101,10 @@
           "apiVersion": "[variables('apiVersion')]",
           "type": "Microsoft.Compute/virtualMachines",
           "name": "[parameters('vmName')]",
+          "dependsOn": [
+            "[concat(parameters('vmName'), '-nic0')]",
+            "[concat(parameters('vmName'), '-nic1')]"
+        ],
           "location": "[variables('location')]",
           "plan": {
              "name": "[parameters('imageSku')]",
